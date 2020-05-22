@@ -2,7 +2,7 @@
     "name": "fiasco/async",
     "description": "PHP library for running asynchronous runtime php forks using pcntl.",
     "type": "library",
-    "license": "GPLv3-or-later",
+    "license": "GPL-3.0-or-later",
     "authors": [
         {
             "name": "Josh Waihi",
