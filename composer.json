@@ -1,0 +1,17 @@
+{
+    "name": "fiasco/async",
+    "description": "PHP library for running asynchronous runtime php forks using pcntl.",
+    "type": "library",
+    "license": "GPLv3-or-later",
+    "authors": [
+        {
+            "name": "Josh Waihi",
+            "email": "joshwaihi@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Async\\": "src/"
+        }
+    }
+}
