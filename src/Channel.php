@@ -33,6 +33,10 @@ class Channel {
       $this->fd = fopen($this->filename, 'a+');
       $this->mode = static::MODE_WRITE;
       $this->logger = $logger;
+
+      Signal::register([Signal::SIGINT], function () {
+        $this->close();
+      });
     }
 
     public function waitForClearChannel()

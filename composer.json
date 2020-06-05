@@ -10,11 +10,15 @@
         }
     ],
     "require": {
-      "psr/log": "~1.0"
+      "psr/log": "~1.0",
+        "seld/signal-handler": "^1.2"
     },
     "autoload": {
         "psr-4": {
             "Async\\": "src/"
         }
+    },
+    "require-dev": {
+        "symfony/console": "^5.1"
     }
 }

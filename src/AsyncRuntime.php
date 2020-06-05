@@ -34,6 +34,10 @@ class AsyncRuntime {
       $this->parentPid = getmypid();
       $this->pid = getmypid();
 
+      Signal::register([Signal::SIGINT], function () {
+        $this->killForks();
+      });
+
       register_shutdown_function([$this, 'killForks']);
   }
 
@@ -42,11 +46,15 @@ class AsyncRuntime {
     if (!$this->isParent()) {
       return $this;
     }
-    // echo __METHOD__ . " " . getmypid() . " killing " . count($this->threads) . " threads." . PHP_EOL;
+
     foreach (array_keys($this->threads) as $pid) {
         posix_kill($pid, SIGKILL);
+        pcntl_signal_dispatch();
     }
+
+    $this->logger->warning(getmypid() . " killing " . count($this->threads) . " threads.");
     foreach (array_keys($this->threads) as $pid) {
+      $this->logger->warning(getmypid() . " waiting for $pid to complete.");
       pcntl_waitpid($pid, $status);
       unset($this->threads[$pid]);
     }
@@ -106,6 +114,7 @@ class AsyncRuntime {
     // static::FORKED_THREAD to the child, we need to set the childPid
     // based on $pid.
     $this->childPid = $this->pid;
+    Signal::create(null, $this->logger);
 
     // Using the channel returns the output to the parent.
     $this->log("Sending work to the channel.");
@@ -203,6 +212,12 @@ class AsyncRuntime {
   public function setEnabled($state = true)
   {
     $this->disabled = !$state;
+    return $this;
+  }
+
+  public function setMaxThreads(int $max)
+  {
+    $this->maxThreads = $max;
     return $this;
   }
 }
