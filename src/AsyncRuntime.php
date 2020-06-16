@@ -52,6 +52,10 @@ class AsyncRuntime {
         pcntl_signal_dispatch();
     }
 
+    if (!count($this->threads)) {
+      return $this;
+    }
+
     $this->logger->warning(getmypid() . " killing " . count($this->threads) . " threads.");
     foreach (array_keys($this->threads) as $pid) {
       $this->logger->warning(getmypid() . " waiting for $pid to complete.");
