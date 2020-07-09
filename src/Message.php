@@ -47,9 +47,15 @@ class Message {
           $tag => '',
           static::PAYLOAD_END => '',
         ]);
-        $payload = base64_decode($payload);
-        $payload = unserialize($payload);
-        return new static($payload, $pid, $id);
+        if (!$decoded = base64_decode($payload)) {
+          throw new MessageException("Could not decode payload: $payload.");
+        }
+        // Catch when un-serialization doesn't work. Which is when the
+        // decoded message isn't "b:0;".
+        if ((!$data = unserialize($decoded)) && $decoded != 'b:0;') {
+          throw new MessageException("Could not unserialize payload: $decoded.");
+        }
+        return new static($data, $pid, $id);
     }
 
     public function id()

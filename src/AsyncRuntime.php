@@ -69,9 +69,11 @@ class AsyncRuntime {
     }
 
     // Create the fork or run the callable $func in the same thread using the queue.
+    $this->log(sprintf('There are %s threads running. About to fork another...', count($this->threads)));
     $this->childPid = function_exists('pcntl_fork') ? pcntl_fork() : static::FORK_ERROR;
     $this->pid = getmypid();
     if ($this->childPid == static::FORK_ERROR) {
+      $this->log('Forking attempted errored. Adding job to error queue to run manually.');
       $this->errorQueue[] = $func;
       return false;
     }
@@ -115,13 +117,18 @@ class AsyncRuntime {
   public function wait():iterable
   {
     $total = count($this->threads);
+    
+    // The listener holds the file descriptor open. Placing this inside the
+    // loop would place the pointer at the begining of the file each time
+    // so we create it before instead.
+    $listener = $this->channel->getListener();
     while (!empty($this->threads) || !empty($this->queue)) {
         // Fork any queued jobs.
         $this->workQueue();
         $this->log(sprintf("There are still %s/%s threads active.", count($this->threads), $total));
 
         // Listen for any return outcomes from other forks.
-        foreach ($this->channel->getListener()->readMessages() as $message) {
+        foreach ($listener->readMessages() as $message) {
             $this->log(sprintf('Got message %s from %s', $message->id(), $message->pid()));
             yield $message->payload();
             unset($this->threads[$message->pid()]);
