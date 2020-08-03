@@ -11,7 +11,8 @@
     ],
     "require": {
       "psr/log": "~1.0",
-        "seld/signal-handler": "^1.2"
+      "symfony/event-dispatcher": "^5.0"
+      "seld/signal-handler": "^1.2"
     },
     "autoload": {
         "psr-4": {

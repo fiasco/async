@@ -30,6 +30,6 @@ class Channel {
 
     public function close()
     {
-        unlink($this->filename);
+        @unlink($this->filename);
     }
 }

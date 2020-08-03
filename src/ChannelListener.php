@@ -6,6 +6,7 @@ class ChannelListener {
 
     protected $fd;
     protected $filename;
+    protected $pos;
 
     public function __construct($filename)
     {
@@ -16,9 +17,11 @@ class ChannelListener {
     public function readMessages():array
     {
         $payload = '';
+
         while ($block = fread($this->fd, 1024)) {
           $payload .= $block;
         }
+
         $messages = [];
         foreach (explode(Message::PAYLOAD_END, $payload) as $data_bundle) {
             try {
