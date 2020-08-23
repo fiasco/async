@@ -113,10 +113,12 @@ class ForkManager {
         do {
             // Listen for any return outcomes from other forks.
             foreach ($this->listener->readMessages() as $message) {
-                // $this->log(sprintf('Got message %s from %s', $message->id(), $message->pid()));
+                $this->logger->debug(sprintf('Got message %s from %s.', $message->id(), $message->pid()));
                 $fork = $this->activeForks[$message->pid()];
                 $fork->process($message->payload(), $this->dispatcher);
                 unset($this->activeForks[$message->pid()]);
+                $this->logger->debug(sprintf('Still %s forks remaining', count($this->activeForks)));
+                $this->processQueue();
                 yield $message->payload();
             }
             usleep(self::WAIT_TIME);
