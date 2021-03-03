@@ -18,12 +18,17 @@ class Channel {
         });
     }
 
-    public function getPublisher()
+    public function getName():string
+    {
+      return $this->filename;
+    }
+
+    public function getPublisher():ChannelPublisher
     {
         return new ChannelPublisher($this->filename);
     }
 
-    public function getListener()
+    public function getListener():ChannelListener
     {
         return new ChannelListener($this->filename);
     }

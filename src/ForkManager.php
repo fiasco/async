@@ -9,7 +9,11 @@ use Psr\Log\LoggerInterface;
 function_exists('pcntl_async_signals') && pcntl_async_signals(TRUE);
 
 class ForkManager {
+    /** @var int wait time in microseconds **/
     protected const WAIT_TIME = 300000;
+
+    /** @var int wait timeout in seconds **/
+    protected const WAIT_TIMEOUT = 36000;
 
     /** @var Symfony\Component\EventDispatcher\EventDispatcher */
     protected $dispatcher;
@@ -31,6 +35,8 @@ class ForkManager {
 
     /** @var Async\ChannelListener */
     protected $listener;
+
+    protected float $waitBackoff = 1.0;
 
     public function __construct(EventDispatcher $dispatcher = null, LoggerInterface $logger = null)
     {
@@ -110,9 +116,18 @@ class ForkManager {
      */
     public function receive():\Generator
     {
+       $last_message_count = 0;
+       $last_message_sent = time();
         do {
+            if (self::WAIT_TIMEOUT < (time() - $last_message_sent)) {
+              $this->logger->error(sprintf('Timeout reached waiting for message from channel "%s".', $this->channel->getName()));
+              $this->terminateForks();
+              return;
+            }
+            $new_messages = $this->listener->readMessages();
+
             // Listen for any return outcomes from other forks.
-            foreach ($this->listener->readMessages() as $message) {
+            foreach ($new_messages as $message) {
                 $this->logger->debug(sprintf('Got message %s from %s.', $message->id(), $message->pid()));
                 $fork = $this->activeForks[$message->pid()];
                 $fork->process($message->payload(), $this->dispatcher);
@@ -120,9 +135,28 @@ class ForkManager {
                 $this->logger->debug(sprintf('Still %s forks remaining', count($this->activeForks)));
                 $this->processQueue();
                 yield $message->payload();
+                $last_message_sent = time();
             }
-            usleep(self::WAIT_TIME);
+
+            if (empty($new_messages)) {
+              $this->logger->debug(sprintf('No new messages in channel "%s". Backoff: %f', $this->channel->getName(), $this->waitBackoff));
+
+              // Increase the backoff of the last message read had no messages.
+              if ($last_message_count == 0) {
+                $this->waitBackoff += 0.1;
+              }
+            }
+            else {
+              // Reset the wait backoff.
+              $this->waitBackoff = 1.0;
+            }
+            $last_message_count = count($new_messages);
+
+            $waitTime = self::WAIT_TIME * $this->waitBackoff;
+            usleep($waitTime);
         }
+        // Continue to recieve messages until there are no more active forks or
+        // a timeout limit has been reached.
         while (count($this->activeForks));
     }
 
