@@ -4,9 +4,11 @@ namespace Async;
 use Async\Exception\ForkException;
 use Async\Event\ForkEvent;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Psr\Log\LoggerInterface;
 
 class Fork {
     public const FORK_ERROR = -1;
+    protected string $name;
     protected $callable;
     protected $channel;
     protected bool $isFork;
@@ -15,12 +17,21 @@ class Fork {
     protected $onCompleteCallback = false;
     protected int $forkPid = -1;
     protected $payload;
+    protected LoggerInterface $logger;
 
-    public function __construct(callable $callable, Channel $channel)
+    public function __construct(callable $callable, Channel $channel, LoggerInterface $logger)
     {
         $this->callable = $callable;
         $this->channel = $channel;
         $this->parentPid = getmypid();
+        $this->logger = $logger;
+        $this->name = '';
+    }
+
+    public function setName(string $name):Fork
+    {
+      $this->name = $name;
+      return $this;
     }
 
     public function run(EventDispatcher $dispatcher = null)
@@ -49,9 +60,14 @@ class Fork {
         return $this;
       }
 
+      $timer = microtime(true);
+
       $this->channel
         ->getPublisher()
         ->publish(new Message(call_user_func($this->callable)));
+
+      $duration = microtime(true) - $timer;
+      $this->logger->debug("Fork {$this->name} ({$this->forkPid}) completed in $duration seconds.");
       exit;
     }
 

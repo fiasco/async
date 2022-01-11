@@ -55,7 +55,7 @@ class ForkManager {
      */
     public function run(callable $func):Fork
     {
-        $promise = new Fork($func, $this->channel);
+        $promise = new Fork($func, $this->channel, $this->logger);
         $this->queue[] = $promise;
         $this->processQueue();
         return $promise;
