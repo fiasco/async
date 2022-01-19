@@ -2,6 +2,7 @@
 
 namespace Async;
 use Async\Exception\ForkException;
+use Async\Exception\ChildExceptionDetected;
 use Async\Event\ForkEvent;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Psr\Log\LoggerInterface;
@@ -62,9 +63,16 @@ class Fork {
 
       $timer = microtime(true);
 
+      try {
+        $payload = call_user_func($this->callable);
+      }
+      catch (\Exception $e) {
+        $payload = new ChildExceptionDetected($e);
+      }
+
       $this->channel
         ->getPublisher()
-        ->publish(new Message(call_user_func($this->callable)));
+        ->publish(new Message($payload));
 
       $duration = microtime(true) - $timer;
       $this->logger->debug("Fork {$this->name} ({$this->forkPid}) completed in $duration seconds.");
@@ -79,36 +87,5 @@ class Fork {
     public function isFork():int
     {
         return $this->isFork;
-    }
-
-    public function process($payload, EventDispatcher $dispatcher = null):Fork
-    {
-        $this->payload = $payload;
-        $this->completed = true;
-
-        if ($dispatcher) {
-            $event = new ForkEvent($this);
-            $dispatcher->dispatch($event, ForkEvent::EVENT_FORK_COMPLETE);
-        }
-
-        if ($this->onCompleteCallback) {
-            call_user_func($this->onCompleteCallback, $payload);
-        }
-        return $this;
-    }
-
-    public function onComplete(callable $callable)
-    {
-        $this->onCompleteCallback = $callable;
-    }
-
-    public function isCompleted():bool
-    {
-        return $this->completed;
-    }
-
-    public function getPayload()
-    {
-        return $this->payload;
     }
 }

@@ -75,48 +75,11 @@ class ForkManager {
     }
 
     /**
-     * Pull any results sent from forks.
-     */
-    protected function processForks():ForkManager
-    {
-      // Listen for any return outcomes from other forks.
-      foreach ($this->listener->readMessages() as $message) {
-          // $this->log(sprintf('Got message %s from %s', $message->id(), $message->pid()));
-          $fork = $this->activeForks[$message->pid()];
-          $fork->process($message->payload(), $this->dispatcher);
-
-          unset($this->activeForks[$message->pid()]);
-      }
-      return $this;
-    }
-
-    /**
-     * Wait for all fork threads to complete.
-     */
-    public function wait():void
-    {
-        do {
-            $this->processQueue();
-            $completed = array_filter(array_keys($this->activeForks), function ($pid) {
-                $child_pid = pcntl_waitpid($pid, $status, WNOHANG);
-                return $child_pid > 0;
-            });
-            if (count($completed) < count($this->activeForks)) {
-                $this->processForks();
-            }
-            else {
-                usleep(self::WAIT_TIME);
-            }
-        }
-        while (count($this->activeForks));
-    }
-
-    /**
      * Retrieve messages as they arrive in an iterable fashion.
      */
     public function receive():\Generator
     {
-       $last_message_count = 0;
+       // Used to enforce a timeout.
        $last_message_sent = time();
         do {
             if (self::WAIT_TIMEOUT < (time() - $last_message_sent)) {
@@ -125,32 +88,37 @@ class ForkManager {
               return;
             }
             $new_messages = $this->listener->readMessages();
+            $last_message_count = 0;
 
             // Listen for any return outcomes from other forks.
             foreach ($new_messages as $message) {
                 $this->logger->debug(sprintf('Got message %s from %s.', $message->id(), $message->pid()));
-                $fork = $this->activeForks[$message->pid()];
-                $fork->process($message->payload(), $this->dispatcher);
-                unset($this->activeForks[$message->pid()]);
+
+                if (!isset($this->activeForks[$message->pid()])) {
+                  throw new InactiveForkException(sprintf("Recieved message (%s) from inactive fork (%s)", $message->id(), $message->pid()));
+                }
+                else {
+                  unset($this->activeForks[$message->pid()]);
+                }
+
                 $this->logger->debug(sprintf('Still %s forks remaining', count($this->activeForks)));
                 $this->processQueue();
                 yield $message->payload();
+
+                // Reset timeout.
                 $last_message_sent = time();
+                $last_message_count++;
             }
 
-            if (empty($new_messages)) {
+            // Increase the backoff of the last message read had no messages.
+            if ($last_message_count == 0) {
+              $this->waitBackoff += 0.1;
               $this->logger->debug(sprintf('No new messages in channel "%s". Backoff: %f', $this->channel->getName(), $this->waitBackoff));
-
-              // Increase the backoff of the last message read had no messages.
-              if ($last_message_count == 0) {
-                $this->waitBackoff += 0.1;
-              }
             }
+            // Reset the wait backoff.
             else {
-              // Reset the wait backoff.
               $this->waitBackoff = 1.0;
             }
-            $last_message_count = count($new_messages);
 
             $waitTime = self::WAIT_TIME * $this->waitBackoff;
             usleep($waitTime);

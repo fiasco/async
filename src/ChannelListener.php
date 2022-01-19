@@ -7,6 +7,7 @@ class ChannelListener {
     protected $fd;
     protected $filename;
     protected $pos;
+    protected array $messageReceipts = [];
 
     public function __construct($filename)
     {
@@ -25,7 +26,16 @@ class ChannelListener {
         $messages = [];
         foreach (explode(Message::PAYLOAD_END, $payload) as $data_bundle) {
             try {
-                $messages[] = Message::fromPayload($data_bundle);
+                if (!$message = Message::fromPayload($data_bundle)) {
+                  continue;
+                }
+
+                // Ensure disk cache doesn't read in the same message twice.
+                $receipt = $message->id() . ':' . $message->pid();
+                if (!in_array($receipt, $this->messageReceipts)) {
+                  $messages[] = $message;
+                  $this->messageReceipts[] = $receipt;
+                }
             }
             catch (MessageException $e) {
                 echo "\n\nERROR[{$this->filename}]: ".$e->getMessage().PHP_EOL;

@@ -4,6 +4,7 @@ namespace Async;
 
 class Message {
 
+    const SERIALIZED_FALSE = 'b:0;';
     const PAYLOAD_START = '<MSG id="%s">';
     const PAYLOAD_END = "</MSG>\r\n";
 
@@ -50,9 +51,11 @@ class Message {
         if (!$decoded = base64_decode($payload)) {
           throw new MessageException("Could not decode payload: $payload.");
         }
-        // Catch when un-serialization doesn't work. Which is when the
-        // decoded message isn't "b:0;".
-        if ((!$data = unserialize($decoded)) && $decoded != 'b:0;') {
+
+        $data = unserialize($decoded);
+
+        // Detect when unserialization fails.
+        if ($data === FALSE && $decoded != static::SERIALIZED_FALSE) {
           throw new MessageException("Could not unserialize payload: $decoded.");
         }
         return new static($data, $pid, $id);

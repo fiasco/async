@@ -20,6 +20,7 @@
         }
     },
     "require-dev": {
-        "symfony/console": "^5.1"
+        "symfony/console": "^5.1",
+        "phpunit/phpunit": "^9"
     }
 }
