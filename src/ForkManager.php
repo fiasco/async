@@ -3,6 +3,7 @@
 namespace Async;
 
 use Async\Event\ForkEvent;
+use Async\Exception\InactiveForkException;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Psr\Log\LoggerInterface;
 
