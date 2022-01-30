@@ -151,7 +151,7 @@ class ForkManager {
      */
     public function onReceive(callable $func):int
     {
-      foreach ($this->recieve() as $response) {
+      foreach ($this->receive() as $response) {
         $this->payloadsAck++;
         $func($response);
       }
