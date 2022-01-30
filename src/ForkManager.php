@@ -4,6 +4,7 @@ namespace Async;
 
 use Async\Event\ForkEvent;
 use Async\Exception\InactiveForkException;
+use Async\Exception\ForkWaitTimeoutException;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Psr\Log\LoggerInterface;
 
@@ -12,9 +13,6 @@ function_exists('pcntl_async_signals') && pcntl_async_signals(TRUE);
 class ForkManager {
     /** @var int wait time in microseconds **/
     protected const WAIT_TIME = 300000;
-
-    /** @var int wait timeout in seconds **/
-    protected const WAIT_TIMEOUT = 36000;
 
     /** @var Symfony\Component\EventDispatcher\EventDispatcher */
     protected $dispatcher;
@@ -37,7 +35,11 @@ class ForkManager {
     /** @var Async\ChannelListener */
     protected $listener;
 
+    /** @var float */
     protected float $waitBackoff = 1.0;
+
+    /** @var float */
+    protected float $waitTimeout = 36000;
 
     public function __construct(EventDispatcher $dispatcher = null, LoggerInterface $logger = null)
     {
@@ -49,6 +51,15 @@ class ForkManager {
         Signal::register([Signal::SIGINT], function () {
             $this->terminateForks();
         });
+    }
+
+    /**
+     * Set the wait timeout for messages to arrive from forks.
+     */
+    public function setWaitTimeout($number):ForkManager
+    {
+      $this->waitTimeout = (float) $number;
+      return $this;
     }
 
     /**
@@ -83,9 +94,11 @@ class ForkManager {
        // Used to enforce a timeout.
        $last_message_sent = time();
         do {
-            if (self::WAIT_TIMEOUT < (time() - $last_message_sent)) {
-              $this->logger->error(sprintf('Timeout reached waiting for message from channel "%s".', $this->channel->getName()));
+            if ($this->waitTimeout < (time() - $last_message_sent)) {
+              $errmsg = sprintf('Timeout reached waiting for message from channel "%s".', $this->channel->getName());
+              $this->logger->error($errmsg);
               $this->terminateForks();
+              throw new ForkWaitTimeoutException($errmsg);
               return;
             }
             $new_messages = $this->listener->readMessages();

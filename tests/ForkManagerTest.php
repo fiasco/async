@@ -153,4 +153,61 @@ final class ForkManagerTest extends TestCase
     }
   }
 
+  public function testLargePayloads() {
+    $manager = new ForkManager(null, new NullLogger());
+    $manager->run(fn() => $this->generateRandomString());
+    $manager->run(function () {
+      usleep(10000);
+      return $this->generateRandomString();
+    });
+    $manager->run(fn() => $this->generateRandomString());
+
+    foreach ($manager->receive() as $payload) {
+      $tags[] = $payload;
+    }
+    $this->assertEquals(count($tags), 3);
+
+    $tags = [];
+
+    for ($i=0; $i < 10; $i++) {
+      $manager->run(function () use ($i) {
+        usleep(mt_rand(0, 1000));
+        return [$i, $this->generateRandomString()];
+      });
+    }
+
+    foreach ($manager->receive() as $payload) {
+      $tags[] = $payload;
+    }
+
+    $this->assertEquals(count($tags), 10);
+  }
+
+  public function testWaitTimeoutException() {
+    $this->expectException(ForkException::class);
+
+    $manager = new ForkManager(null, new NullLogger());
+    $manager->setWaitTimeout(2);
+    $manager->run(fn() => sleep(4));
+
+
+    foreach ($manager->receive() as $payload) {
+      $tags[] = $payload;
+    }
+  }
+
+  protected function generateRandomString($length = 1048576) {
+      $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      $charactersLength = strlen($characters);
+      $randomString = '';
+      for ($i = 0; $i < $length; $i++) {
+          $randomString .= $characters[rand(0, $charactersLength - 1)];
+      }
+      return $randomString;
+  }
+
+
+
+
+
 }
