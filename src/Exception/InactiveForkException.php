@@ -2,4 +2,4 @@
 
 namespace Async\Exception;
 
-class InactiveForkException extends \RuntimeException {}
+class InactiveForkException extends ForkException {}
