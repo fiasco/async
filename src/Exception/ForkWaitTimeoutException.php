@@ -2,4 +2,6 @@
 
 namespace Async\Exception;
 
-class ForkWaitTimeoutException extends ForkException {}
+class ForkWaitTimeoutException extends ForkException {
+  protected int $forkCode = 550;
+}
