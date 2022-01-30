@@ -97,7 +97,7 @@ class ForkManager {
        $last_message_sent = time();
         do {
             if ($this->waitTimeout < (time() - $last_message_sent)) {
-              $errmsg = sprintf('Timeout reached waiting for message from channel "%s".', $this->channel->getName());
+              $errmsg = sprintf('Timeout of %s seconds reached waiting for message from channel "%s".', $this->waitTimeout, $this->channel->getName());
               $this->logger->error($errmsg);
               $this->terminateForks();
               throw new ForkWaitTimeoutException($errmsg);
