@@ -41,6 +41,8 @@ class ForkManager {
     /** @var float */
     protected float $waitTimeout = 36000;
 
+    protected int $payloadsAck = 0;
+
     public function __construct(EventDispatcher $dispatcher = null, LoggerInterface $logger = null)
     {
         $this->dispatcher = $dispatcher;
@@ -140,6 +142,28 @@ class ForkManager {
         // Continue to recieve messages until there are no more active forks or
         // a timeout limit has been reached.
         while (count($this->activeForks));
+    }
+
+    /**
+     * Exec a callable on each payload received.
+     *
+     * @return int The accumulative payloads received.
+     */
+    public function onReceive(callable $func):int
+    {
+      foreach ($this->recieve() as $response) {
+        $this->payloadsAck++;
+        $func($response);
+      }
+      return $this->payloadsAck;
+    }
+
+    /**
+     * Get the accumulative payloads received.
+     */
+    public function getPayloadCount():int
+    {
+      return $this->payloadsAck;
     }
 
     /**

@@ -2,4 +2,11 @@
 
 namespace Async\Exception;
 
-class ForkException extends \RuntimeException {}
+class ForkException extends \Exception {
+  protected int $forkCode = 540;
+
+  public function __construct(string $message = "", int $code = 0, ?Throwable $previous = null)
+  {
+    parent::__construct($message, $this->forkCode, $previous);
+  }
+}
