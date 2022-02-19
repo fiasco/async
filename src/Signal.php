@@ -12,10 +12,11 @@ class Signal extends SignalHandler {
     {
         foreach ($signals as $signal) {
             static::$callbacks[$signal][] = $callback;
-
+        }
+        foreach ($signals as $signal) {
             $calls = static::$callbacks[$signal];
 
-            static::create($signal, function ($signal, $signalName) use ($calls) {
+            static::create([$signal], function ($signal, $signalName) use ($calls) {
                 foreach ($calls as $callback) {
                     $callback($signal, $signalName);
                 }
