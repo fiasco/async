@@ -6,12 +6,14 @@ use Async\Socket\Server;
 use Async\Socket\Client;
 use Async\Exception\ProcessException;
 use Async\Exception\ChildExceptionDetected;
+use Async\Exception\ForkException;
 
 class Process {
   const STATUS_IS_PARENT = 0;
   const STATUS_IS_CHILD = 1;
   const STATUS_WAITINGFORCHILD = 3;
   const STATUS_CHILDCOMPLETE = 5;
+  const STATUS_CHILDERROR = 7
 
   protected int $myPid;
   protected int $parentPid = 0;
@@ -72,6 +74,7 @@ class Process {
     switch ($status) {
       case self::STATUS_WAITINGFORCHILD:
       case self::STATUS_CHILDCOMPLETE:
+      case self::STATUS_CHILDERROR:
         $this->status = $status;
         break;
       default:
@@ -83,6 +86,17 @@ class Process {
   public function getStatus():int
   {
     return $this->status;
+  }
+
+  public function setResult($result):Process
+  {
+    $this->result = $result;
+    return $this;
+  }
+
+  public function getResult()
+  {
+    return $this->result;
   }
 
   public function fork():Process
@@ -133,6 +147,7 @@ class Process {
       if (!count($waiting)) {
         break;
       }
+
       $message = $this->server->receive();
 
       if (!isset($this->forks[$message->pid()])) {
@@ -145,10 +160,17 @@ class Process {
         throw new ProcessException(sprintf("Recieved message from pid %d but wasn't expecting message.", $message->pid()));
       }
 
-      // Completed now we've recieved a message from the fork.
-      $fork->setStatus(self::STATUS_CHILDCOMPLETE);
+      if ($message->payload() instanceof ChildExceptionDetected) {
+        $fork->setStatus(self::STATUS_CHILDERROR);
+      }
+      else {
+        // Completed now we've recieved a message from the fork.
+        $fork->setStatus(self::STATUS_CHILDCOMPLETE);
+      }
 
-      yield $message->payload();
+      $fork->setResult($message->payload())''
+
+      yield $fork;
     }
   }
 }
