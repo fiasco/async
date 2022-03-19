@@ -112,12 +112,11 @@ class Process {
       return;
     }
     if ($this->client) {
-      try {
-        $this->client->send(call_user_func($callback, $this));
-      }
-      catch (\Exception $e) {
+      set_exception_handler(function ($e) {
         $this->client->send(new ChildExceptionDetected($e));
-      }
+      });
+
+      $this->client->send(call_user_func($callback, $this));
       exit;
     }
     // This is a parent thread run.

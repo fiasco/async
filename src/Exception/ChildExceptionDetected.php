@@ -11,7 +11,7 @@ class ChildExceptionDetected implements \Serializable {
   public $file;
 
 
-  public function __construct(\Exception $e) {
+  public function __construct(\Throwable $e) {
     $this->message = $e->getMessage();
     $this->code = $e->getCode();
     $this->trace = $e->getTraceAsString();
