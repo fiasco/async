@@ -4,26 +4,18 @@ namespace Async;
 
 class Message {
 
-    const SERIALIZED_FALSE = 'b:0;';
-    const PAYLOAD_START = '<MSG id="%s">';
-    const PAYLOAD_END = "</MSG>\r\n";
-
     protected $payload;
-    protected $id;
-    protected $pid;
-    protected static $counter = 0;
+    protected int $pid;
+    protected int $timestamp;
 
     /**
      * Create a new message to send down a channel.
      */
-    public function __construct($payload, int $pid = null, int $id = null)
+    public function __construct($payload, int $pid = null, int $timestamp = null)
     {
       $this->payload = $payload;
-      if (!isset($id)) {
-        self::$counter++;
-      }
       $this->pid = $pid ?? getmypid();
-      $this->id = $id ?? self::$counter;
+      $this->timestamp = $timestamp ?? time();
     }
 
     /**
@@ -31,39 +23,30 @@ class Message {
      */
     public function __toString():string
     {
-      $payload = base64_encode(serialize($this->payload));
-      $start = sprintf(static::PAYLOAD_START, $this->pid.':'.$this->id);
-      return $start.$payload.static::PAYLOAD_END;
+      // base64 ensures any end of line (EOL) characters are not incorrectly
+      // interpreted by the server as a premature transfer completion.
+      $payload = base64_encode(serialize([
+        'payload' => $this->payload,
+        'pid' => $this->pid,
+        'timestamp' => $this->timestamp
+      ]));
+      // PHP_EOL is how the server knows the payload is complete.
+      return $payload.PHP_EOL;
     }
 
     public static function fromPayload(string $message)
     {
-        // Extract the message ID.
-        preg_match('/<MSG id="(\d+)\:(\d+)">/', $message, $matches);
-        if (empty($matches)) {
-          return false;
-        }
-        list($tag,$pid, $id) = $matches;
-        $payload = strtr($message, [
-          $tag => '',
-          static::PAYLOAD_END => '',
-        ]);
-        if (!$decoded = base64_decode($payload)) {
-          throw new MessageException("Could not decode payload: $payload.");
+        if (!$decoded = base64_decode($message)) {
+          throw new MessageException("Could not decode payload: $message.");
         }
 
         $data = unserialize($decoded);
 
         // Detect when unserialization fails.
-        if ($data === FALSE && $decoded != static::SERIALIZED_FALSE) {
+        if ($data === FALSE) {
           throw new MessageException("Could not unserialize payload: $decoded.");
         }
-        return new static($data, $pid, $id);
-    }
-
-    public function id()
-    {
-      return $this->id;
+        return new static($data['payload'], $data['pid'], $data['timestamp']);
     }
 
     public function pid()
@@ -74,5 +57,10 @@ class Message {
     public function payload()
     {
       return $this->payload;
+    }
+
+    public function timestamp()
+    {
+      return $this->timestamp();
     }
 }

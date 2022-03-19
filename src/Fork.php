@@ -9,6 +9,7 @@ use Psr\Log\LoggerInterface;
 
 class Fork {
     public const FORK_ERROR = -1;
+    public const FORK_DISABLED = -2;
     protected string $name;
     protected $callable;
     protected $channel;
@@ -16,6 +17,7 @@ class Fork {
     protected bool $isParent;
     protected bool $completed = false;
     protected $onCompleteCallback = false;
+    protected bool $async = true;
     protected int $forkPid = -1;
     protected $payload;
     protected LoggerInterface $logger;
@@ -35,11 +37,16 @@ class Fork {
       return $this;
     }
 
+    public function forceSynchronous():Fork
+    {
+      $this->async = false;
+      return $this;
+    }
+
     public function run(EventDispatcher $dispatcher = null)
     {
-      // Create the fork or run the callable $func in the same thread using the queue.
-      // $this->log(sprintf('There are %s threads running. About to fork another...', count($this->threads)));
-      $pid = function_exists('pcntl_fork') ? pcntl_fork() : static::FORK_ERROR;
+      // Create the fork or run in same thread if forced synchronous.
+      $pid = function_exists('pcntl_fork') ? pcntl_fork() : ($this->async ? static::FORK_ERROR : static::FORK_DISABLED);
 
       if ($pid === static::FORK_ERROR) {
           throw new ForkException("Fork attempted failed.");
@@ -49,7 +56,7 @@ class Fork {
 
       $this->isFork = ($pid == 0);
       $this->isParent = ($this->parentPid == $mypid);
-      $this->forkPid = $this->isFork ? $mypid : $pid;
+      $this->forkPid = $this->isFork ? $mypid : ($pid == static::FORK_DISABLED ? $mypid : $pid);
 
       if ($dispatcher) {
           $event = new ForkEvent($this);
@@ -57,7 +64,7 @@ class Fork {
       }
 
       // If this is the parent thread, return the fork object.
-      if ($this->isParent) {
+      if ($this->isParent && $this->async) {
         return $this;
       }
 
@@ -76,7 +83,10 @@ class Fork {
 
       $duration = microtime(true) - $timer;
       $this->logger->debug("Fork {$this->name} ({$this->forkPid}) completed in $duration seconds.");
-      exit;
+
+      if ($this->async) {
+        exit;
+      }
     }
 
     public function getForkPid():int
