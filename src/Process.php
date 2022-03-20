@@ -8,12 +8,12 @@ use Async\Exception\ProcessException;
 use Async\Exception\ChildExceptionDetected;
 use Async\Exception\ForkException;
 
-class Process {
+class Process implements \Serializable {
   const STATUS_IS_PARENT = 0;
   const STATUS_IS_CHILD = 1;
   const STATUS_WAITINGFORCHILD = 3;
   const STATUS_CHILDCOMPLETE = 5;
-  const STATUS_CHILDERROR = 7
+  const STATUS_CHILDERROR = 7;
 
   protected int $myPid;
   protected int $parentPid = 0;
@@ -22,6 +22,10 @@ class Process {
   protected Client $client;
   protected array $forks = [];
   protected int $status = 1;
+  protected \Closure $onSuccessCallback;
+  protected \Closure $onErrorCallback;
+  protected $result;
+  protected string $title;
 
   public function __construct(?int $parent_pid = null, ?Server $server = null)
   {
@@ -54,6 +58,7 @@ class Process {
       $this->disabled = true;
       $this->myPid = $pid;
     }
+    $this->title = sprintf("Process #%d", $this->myPid);
   }
 
   public function isDisabled():bool
@@ -61,9 +66,20 @@ class Process {
     return $this->disabled;
   }
 
-  public function getPid()
+  public function getPid():int
   {
     return $this->myPid;
+  }
+
+  public function setTitle(string $title):Process
+  {
+    $this->title = $title;
+    return $this;
+  }
+
+  public function getTitle():string
+  {
+    return $this->title;
   }
 
   /**
@@ -88,19 +104,9 @@ class Process {
     return $this->status;
   }
 
-  public function setResult($result):Process
+  public function fork(?callable $callback = null):Process
   {
-    $this->result = $result;
-    return $this;
-  }
-
-  public function getResult()
-  {
-    return $this->result;
-  }
-
-  public function fork():Process
-  {
+    $this->status = self::STATUS_IS_PARENT;
     // Parent hosts the server to recieve communication from the child.
     if (!isset($this->server)) {
       $this->server = new Server();
@@ -117,28 +123,70 @@ class Process {
       $fork->setStatus(self::STATUS_WAITINGFORCHILD);
       $this->forks[$fork->getPid()] = $fork;
     }
+
+    if (isset($callback)) {
+      return $fork->run($callback);
+    }
     return $fork;
   }
 
   public function run(callable $callback)
   {
     if ($this->disabled) {
-      return;
+      return $this;
     }
     if ($this->client) {
       set_exception_handler(function ($e) {
-        $this->client->send(new ChildExceptionDetected($e));
+        $this->setResult(new ChildExceptionDetected($e));
+        $this->setStatus(self::STATUS_CHILDERROR);
+        $this->client->send($this);
       });
-
-      $this->client->send(call_user_func($callback, $this));
+      $this->setResult(call_user_func($callback, $this));
+      $this->setStatus(self::STATUS_CHILDCOMPLETE);
+      $this->client->send($this);
       exit;
     }
     // This is a parent thread run.
     return call_user_func($callback, $this);
   }
 
-  public function receive():\Generator
+  public function onSuccess(\Closure $callback):Process
   {
+    $this->onSuccessCallback = $callback;
+    return $this;
+  }
+
+  public function onError(\Closure $callback):Process
+  {
+    $this->onErrorCallback = $callback;
+    return $this;
+  }
+
+  public function setResult($result):Process
+  {
+    $this->result = $result;
+    if ($this->status == self::STATUS_CHILDERROR && isset($this->onErrorCallback)) {
+      $callback = $this->onErrorCallback;
+    }
+    if ($this->status == self::STATUS_CHILDCOMPLETE && isset($this->onSuccessCallback)) {
+      $callback = $this->onSuccessCallback;
+    }
+    if (isset($callback)) {
+      $callback($result, $this);
+    }
+    return $this;
+  }
+
+  public function getResult()
+  {
+    return $this->result;
+  }
+
+  public function awaitForks():Process
+  {
+    if ($this->getStatus() != self::STATUS_IS_PARENT) {
+      throw new ProcessException("Cannot await forks on child process. Use parent process.");
+    }
     if (!$this->server) {
       throw new ProcessException("Cannot recieve fork output: no server.");
     }
@@ -148,29 +196,55 @@ class Process {
         break;
       }
 
-      $message = $this->server->receive();
+      $fork_c = $this->server->receive()->payload();
 
-      if (!isset($this->forks[$message->pid()])) {
+      if (!$fork_c instanceof Process) {
+        throw new ProcessException("Recieved non-Process payload from async server.");
+      }
+
+      if (!isset($this->forks[$fork_c->getPid()])) {
         throw new ProcessException("Messge recieved for a fork that does not exist.");
       }
 
-      $fork = $this->forks[$message->pid()];
+      $fork_s = $this->forks[$fork_c->getPid()];
 
-      if ($fork->getStatus() != self::STATUS_WAITINGFORCHILD) {
-        throw new ProcessException(sprintf("Recieved message from pid %d but wasn't expecting message.", $message->pid()));
-      }
-
-      if ($message->payload() instanceof ChildExceptionDetected) {
-        $fork->setStatus(self::STATUS_CHILDERROR);
-      }
-      else {
-        // Completed now we've recieved a message from the fork.
-        $fork->setStatus(self::STATUS_CHILDCOMPLETE);
-      }
-
-      $fork->setResult($message->payload())''
-
-      yield $fork;
+      // Set the status and result from the client to the fork representation
+      // here in the parent thread.
+      $fork_s->setTitle($fork_c->getTitle())
+             ->setStatus($fork_c->getStatus())
+             ->setResult($fork_c->getResult());
     }
+    return $this;
+  }
+
+  public function getForkResults():array
+  {
+    $r = array_filter($this->forks, fn($f) => $f->getStatus() == self::STATUS_CHILDCOMPLETE);
+    return array_map(fn($f) => $f->getResult(), $r);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function serialize()
+  {
+    return serialize([
+      'myPid' => $this->myPid,
+      'result' => $this->result ?? null,
+      'title' => $this->title,
+      'status' => $this->status,
+    ]);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function unserialize($data)
+  {
+    $attributes = unserialize($data);
+    $this->myPid  = $attributes['myPid'];
+    $this->result = $attributes['result'];
+    $this->title = $attributes['title'];
+    $this->status = $attributes['status'];
   }
 }
