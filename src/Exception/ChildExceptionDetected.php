@@ -36,6 +36,5 @@ class ChildExceptionDetected implements \Serializable {
   }
   public function unserialize($data) {
       list($this->message, $this->code, $this->trace, $this->class, $this->line, $this->file) = unserialize($data);
-      //return new ForkException((string) $this);
   }
 }

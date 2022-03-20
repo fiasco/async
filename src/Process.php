@@ -6,7 +6,6 @@ use Async\Socket\Server;
 use Async\Socket\Client;
 use Async\Exception\ProcessException;
 use Async\Exception\ChildExceptionDetected;
-use Async\Exception\ForkException;
 
 class Process implements \Serializable {
   const STATUS_IS_PARENT = 0;
