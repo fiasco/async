@@ -218,6 +218,7 @@ class Process implements \Serializable {
 
   public function getForkResults():array
   {
+    $this->awaitForks();
     $r = array_filter($this->forks, fn($f) => $f->getStatus() == self::STATUS_CHILDCOMPLETE);
     return array_map(fn($f) => $f->getResult(), $r);
   }

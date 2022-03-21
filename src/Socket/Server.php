@@ -10,6 +10,8 @@ class Server {
 
   const ACK = 'ACK';
   const MARKO = 'MARKO';
+  /* 32MB */
+  const READ_MAX_LENGTH = 33554432;
 
   protected $socket;
   protected $msgSocket = false;
@@ -67,7 +69,7 @@ class Server {
     //   return self::MARKO;
     // });
 
-    $buffer = socket_read($this->msgSocket, 2048, PHP_NORMAL_READ);
+    $buffer = socket_read($this->msgSocket, self::READ_MAX_LENGTH, PHP_NORMAL_READ);
     if (false === $buffer) {
         throw new SocketServerException("socket_read() failed: reason: " . socket_strerror(socket_last_error($this->msgSocket)));
     }

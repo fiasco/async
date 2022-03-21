@@ -39,7 +39,6 @@ class Message {
         if (!$decoded = base64_decode($message)) {
           throw new MessageException("Could not decode payload: $message.");
         }
-
         $data = unserialize($decoded);
 
         // Detect when unserialization fails.
