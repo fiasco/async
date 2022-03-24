@@ -33,8 +33,6 @@ class Server {
       $port++;
     }
 
-    echo "Bound to $address:$port\n";
-
     $this->waitTimeout = $waitTimeout;
     $this->address = $address;
     $this->port = $port;
@@ -57,17 +55,6 @@ class Server {
     if ($this->msgSocket === false) {
         throw new SocketServerException("socket_accept() failed: reason: " . socket_strerror(socket_last_error($this->socket)));
     }
-
-    socket_set_option($this->msgSocket, SOL_SOCKET, SO_RCVTIMEO, ['sec' => $this->waitTimeout, 'usec' => 1]);
-    // socket_set_option($this->msgSocket, SOL_SOCKET, SO_SNDTIMEO, ['sec' => $this->waitTimeout, 'usec' => 0]);
-
-    // Socket timeouts are unreliable :( so we're going to set our own
-    // timeout by sending a message to the socket.
-    // $parent = new Process(getmypid(), $this);
-    // $parent->fork()->run(function () {
-    //   sleep($this->waitTimeout);
-    //   return self::MARKO;
-    // });
 
     $buffer = socket_read($this->msgSocket, self::READ_MAX_LENGTH, PHP_NORMAL_READ);
     if (false === $buffer) {
