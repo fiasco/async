@@ -11,7 +11,12 @@ interface ForkInterface {
   /**
    * The forked routine to run.
    */
-  public function run(callable $callback):ForkInterface;
+  public function run(\Closure $callback):ForkInterface;
+
+  /**
+   * Called at the time to run the run() callable.
+   */
+  public function execute():ForkInterface;
 
   /**
    * A callback to call when fork is successful.

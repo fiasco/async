@@ -7,17 +7,20 @@ use Async\Exception\ForkException;
 class SynchronousFork implements ForkInterface {
 
   protected int $status = 1;
+  protected \Closure $runCallback;
   protected \Closure $onSuccessCallback;
   protected \Closure $onErrorCallback;
   protected $result;
   protected bool $processed = false;
   protected string $label;
   protected int $id;
+  protected ForkManager $forkManager;
 
-  public function __construct()
+  public function __construct(ForkManager $forkManager)
   {
     $this->label = sprintf("%s %s", static::class, mt_rand(10000, 99999));
     $this->status = ForkInterface::STATUS_NOTSTARTED;
+    $this->forkManager = $forkManager;
   }
 
   /**
@@ -87,10 +90,22 @@ class SynchronousFork implements ForkInterface {
   /**
    * {@inheritdoc}
    */
-  public function run(callable $callback):ForkInterface
+  public function run(\Closure $callback):ForkInterface
   {
+    $this->runCallback = $callback;
+    $this->forkManager->processQueue();
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function execute():ForkInterface
+  {
+    $this->status = ForkInterface::STATUS_INPROGRESS;
     try {
-      $result = call_user_func($callback, $this);
+      $callback = $this->runCallback;
+      $result = $callback($this);
       $this->status = ForkInterface::STATUS_COMPLETE;
       return $this->setResult($result);
     }

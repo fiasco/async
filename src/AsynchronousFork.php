@@ -11,13 +11,11 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
   const ROLE_SERVER = 'server';
 
   protected string $role;
-  protected ForkManager $forkManager;
 
   public function __construct(ForkManager $forkManager)
   {
-    parent::__construct();
+    parent::__construct($forkManager);
     $this->label = sprintf("%s %s", static::class, getmypid());
-    $this->forkManager = $forkManager;
   }
 
   /**
@@ -35,8 +33,9 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
   /**
    * {@inheritdoc}
    */
-  public function run(callable $callback):ForkInterface
+  public function run(\Closure $callback):ForkInterface
   {
+    $this->status = ForkInterface::STATUS_INPROGRESS;
     $pid = pcntl_fork();
     // Child thread gets a zero, the other thread is the parent.
     $this->role = ($pid == 0) ? self::ROLE_CLIENT : self::ROLE_SERVER;
@@ -44,6 +43,10 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
     if ($this->role == self::ROLE_SERVER) {
       return $this;
     }
+
+    // Because we're asynchronous we don't have to wait for
+    // execute() to be called.
+
     // Don't run these in the fork.
     unset($this->onError, $this->onSuccess);
 
@@ -60,6 +63,14 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
     $this->setResult($result);
     $client->send($this);
     exit;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function execute():ForkInterface
+  {
+    return $this;
   }
 
   /**
