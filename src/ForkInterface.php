@@ -67,4 +67,9 @@ interface ForkInterface {
    * Get the unique ID.
    */
   public function getId():int;
+
+  /**
+   * Terminate the concurrent processing of the fork.
+   */
+  public function terminate():ForkInterface;
 }

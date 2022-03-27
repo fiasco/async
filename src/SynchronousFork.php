@@ -161,4 +161,13 @@ class SynchronousFork implements ForkInterface {
   {
     return $this->result;
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function terminate():ForkInterface
+  {
+    // Synchronous forks cannot terminate.
+    return $this;
+  }
 }

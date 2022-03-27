@@ -5,6 +5,8 @@ namespace Async;
 use Async\Exception\ForkException;
 use Async\Socket\Server;
 
+function_exists('pcntl_async_signals') && pcntl_async_signals(TRUE);
+
 class ForkManager {
   protected array $forks = [];
   protected Server $server;
@@ -16,6 +18,9 @@ class ForkManager {
   public function __construct()
   {
     $this->async = function_exists('pcntl_fork');
+    Signal::register([Signal::SIGINT], function () {
+        $this->terminateForks();
+    });
   }
 
   /**
@@ -180,5 +185,17 @@ class ForkManager {
       throw new ForkException("No such Fork: $id");
     }
     return array_shift($forks);
+  }
+
+  /**
+   * Terminate all forks.
+   */
+  protected function terminateForks():ForkManager
+  {
+     foreach ($this->getForks() as $fork) {
+       $fork->terminate();
+     }
+     function_exists('pcntl_signal_dispatch') && pcntl_signal_dispatch();
+     return $this;
   }
 }

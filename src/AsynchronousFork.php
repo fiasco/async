@@ -11,11 +11,24 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
   const ROLE_SERVER = 'server';
 
   protected string $role;
+  protected int $pid;
 
   public function __construct(ForkManager $forkManager)
   {
     parent::__construct($forkManager);
     $this->label = sprintf("%s %s", static::class, getmypid());
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function terminate():ForkInterface
+  {
+    // Kill forks we're still awaiting to complete.
+    if (isset($this->pid)) {
+      posix_kill($this->pid, SIGKILL);
+    }
+    return $this;
   }
 
   /**
@@ -41,6 +54,7 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
     $this->role = ($pid == 0) ? self::ROLE_CLIENT : self::ROLE_SERVER;
 
     if ($this->role == self::ROLE_SERVER) {
+      $this->pid = $pid;
       return $this;
     }
 
