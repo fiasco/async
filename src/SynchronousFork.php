@@ -3,8 +3,12 @@
 namespace Async;
 
 use Async\Exception\ForkException;
+use Psr\Log\LoggerAwareTrait;
+
 
 class SynchronousFork implements ForkInterface {
+
+  use LoggerAwareTrait;
 
   protected int $status = 1;
   protected \Closure $runCallback;

@@ -5,8 +5,11 @@ namespace Async\Socket;
 use Async\Exception\SocketServerException;
 use Async\Message;
 use Async\Process;
+use Psr\Log\LoggerAwareTrait;
 
 class Server {
+
+  use LoggerAwareTrait;
 
   const ACK = 'ACK';
   const MARKO = 'MARKO';
@@ -44,9 +47,13 @@ class Server {
     $this->socket = $sock;
   }
 
-  public function getClient()
+  public function getClient():Client
   {
-    return new Client($this->address, $this->port);
+    $client = new Client($this->address, $this->port);
+    if (isset($this->logger)) {
+      $client->setLogger($client);
+    }
+    return $client;
   }
 
   public function receive():Message

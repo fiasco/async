@@ -4,10 +4,14 @@ namespace Async;
 
 use Async\Exception\ForkException;
 use Async\Socket\Server;
+use Psr\Log\LoggerAwareTrait;
+
 
 function_exists('pcntl_async_signals') && pcntl_async_signals(TRUE);
 
 class ForkManager {
+  use LoggerAwareTrait;
+
   protected array $forks = [];
   protected Server $server;
   protected bool $async = true;
@@ -30,6 +34,9 @@ class ForkManager {
   {
     if ($this->async && !isset($this->server)) {
       $this->server = new Server();
+      if (isset($this->logger)) {
+        $this->server->setLogger($this->logger);
+      }
     }
     $fork = $this->async ? new AsynchronousFork($this) : new SynchronousFork($this);
     $this->forks[] = $fork;

@@ -67,6 +67,9 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
     $client = $this->forkManager->getServer()->getClient();
 
     set_exception_handler(function ($e) use ($client) {
+      if (isset($this->logger)) {
+        $this->logger->error($e->getMessage());
+      }
       $this->setResult(new ChildExceptionDetected($e));
       $this->setStatus(ForkInterface::STATUS_ERROR);
       $client->send($this);
