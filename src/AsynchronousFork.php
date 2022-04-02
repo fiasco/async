@@ -4,11 +4,12 @@ namespace Async;
 
 use Async\Exception\ForkException;
 use Async\Exception\ChildExceptionDetected;
+use Async\React\Client;
 
 class AsynchronousFork extends SynchronousFork implements \Serializable {
 
-  const ROLE_CLIENT = 'client';
-  const ROLE_SERVER = 'server';
+  const ROLE_CHILD = 'child';
+  const ROLE_PARENT = 'parent';
 
   protected string $role;
   protected int $pid;
@@ -36,50 +37,29 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
    */
   public function getStatus():int
   {
+    // Forking hasn't been initiated yet.
+    if (!isset($this->role)) {
+      return parent::getStatus();
+    }
     // Do not run event handers only client.
-    if ($this->role == self::ROLE_CLIENT) {
+    if ($this->role == self::ROLE_CHILD) {
       return $this->status;
     }
-    return parent::getStatus();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function run(\Closure $callback):ForkInterface
-  {
-    $this->status = ForkInterface::STATUS_INPROGRESS;
-    $pid = pcntl_fork();
-    // Child thread gets a zero, the other thread is the parent.
-    $this->role = ($pid == 0) ? self::ROLE_CLIENT : self::ROLE_SERVER;
-
-    if ($this->role == self::ROLE_SERVER) {
-      $this->pid = $pid;
-      return $this;
+    if ($this->status != ForkInterface::STATUS_INPROGRESS) {
+      return parent::getStatus();
     }
 
-    // Because we're asynchronous we don't have to wait for
-    // execute() to be called.
+    $message = Client::get('/fork/'.$this->pid);
+    if ($message->getMethod() != 'HIT') {
+      return parent::getStatus();
+    }
 
-    // Don't run these in the fork.
-    unset($this->onError, $this->onSuccess);
+    $fork = $message->getPayload();
+    $this->setLabel($fork->getLabel())
+         ->setStatus($fork->getStatus())
+         ->setResult($fork->getResult());
 
-    $client = $this->forkManager->getServer()->getClient();
-
-    set_exception_handler(function ($e) use ($client) {
-      if (isset($this->logger)) {
-        $this->logger->error($e->getMessage());
-      }
-      $this->setResult(new ChildExceptionDetected($e));
-      $this->setStatus(ForkInterface::STATUS_ERROR);
-      $client->send($this);
-    });
-
-    $result = call_user_func($callback, $this);
-    $this->status = ForkInterface::STATUS_COMPLETE;
-    $this->setResult($result);
-    $client->send($this);
-    exit;
+    return parent::getStatus();
   }
 
   /**
@@ -87,7 +67,37 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
    */
   public function execute():ForkInterface
   {
-    return $this;
+    $this->status = ForkInterface::STATUS_INPROGRESS;
+    $pid = pcntl_fork();
+    // Child thread gets a zero, the other thread is the parent.
+    $this->role = ($pid == 0) ? self::ROLE_CHILD : self::ROLE_PARENT;
+
+
+    if ($this->role == self::ROLE_PARENT) {
+      $this->pid = $pid;
+      $this->label = sprintf("%s %s", static::class, $this->pid);
+      return $this;
+    }
+
+    $this->pid = getmypid();
+    $this->label = sprintf("%s %s", static::class, $this->pid);
+
+    // Don't run these in the fork.
+    unset($this->onError, $this->onSuccess);
+
+    set_exception_handler(function ($e) {
+      if (isset($this->logger)) {
+        $this->logger->error($e->getMessage());
+      }
+      $this->setResult(new ChildExceptionDetected($e));
+      $this->setStatus(ForkInterface::STATUS_ERROR);
+
+      Client::put('/fork/'.$this->pid, $this);
+    });
+
+    parent::execute();
+    Client::put('/fork/'.$this->pid, $this);
+    exit;
   }
 
   /**

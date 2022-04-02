@@ -13,6 +13,7 @@ class Message {
      */
     public function __construct($payload, int $pid = null, int $timestamp = null)
     {
+      $this->method = 'PUT';
       $this->payload = $payload;
       $this->pid = $pid ?? getmypid();
       $this->timestamp = $timestamp ?? time();
@@ -43,7 +44,7 @@ class Message {
 
         // Detect when unserialization fails.
         if ($data === FALSE) {
-          throw new MessageException("Could not unserialize payload: $decoded.");
+          throw new MessageException("Could not unserialize payload.");
         }
         return new static($data['payload'], $data['pid'], $data['timestamp']);
     }

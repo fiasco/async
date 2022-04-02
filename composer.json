@@ -12,7 +12,8 @@
     "require": {
       "psr/log": "~1.0",
       "symfony/event-dispatcher": "^5.0",
-      "seld/signal-handler": "^1.2"
+      "seld/signal-handler": "^1.2",
+        "react/socket": "^1.11.0"
     },
     "autoload": {
         "psr-4": {

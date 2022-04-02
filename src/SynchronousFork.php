@@ -85,7 +85,7 @@ class SynchronousFork implements ForkInterface {
   public function getStatus():int
   {
     // Ensure onSuccess and onError callbacks have had a chance to run.
-    if (!$this->processed) {
+    if (!$this->processed && isset($this->result)) {
       return $this->setResult($this->result)->getStatus();
     }
     return $this->status;
@@ -97,7 +97,7 @@ class SynchronousFork implements ForkInterface {
   public function run(\Closure $callback):ForkInterface
   {
     $this->runCallback = $callback;
-    $this->forkManager->processQueue();
+    $this->forkManager->updateForkStatus();
     return $this;
   }
 

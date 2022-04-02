@@ -3,7 +3,7 @@
 namespace Async;
 
 use Async\Exception\ForkException;
-use Async\Socket\Server;
+use Async\React\Server;
 use Psr\Log\LoggerAwareTrait;
 
 
@@ -32,26 +32,13 @@ class ForkManager {
    */
   public function create():ForkInterface
   {
-    if ($this->async && !isset($this->server)) {
-      $this->server = new Server();
-      if (isset($this->logger)) {
-        $this->server->setLogger($this->logger);
-      }
+    if ($this->async) {
+      Server::spawn(isset($this->logger) ? $this->logger : null);
     }
     $fork = $this->async ? new AsynchronousFork($this) : new SynchronousFork($this);
     $this->forks[] = $fork;
     $fork->setId(count($this->forks));
     return $fork;
-  }
-
-  /**
-   * Fetch the \Async\Socket\Server object.
-   *
-   * This will cause a fatal error if $this->async is false.
-   */
-  public function getServer():Server
-  {
-    return $this->server;
   }
 
   /**
@@ -91,33 +78,32 @@ class ForkManager {
   public function awaitForks():ForkManager
   {
     $start = time();
-    $loops = 0;
-    do {
-      $not_started = $this->getForks(ForkInterface::STATUS_NOTSTARTED);
-      $in_progress = $this->getForks(ForkInterface::STATUS_INPROGRESS);
-
-      if ((time() - $start) > $this->maxWaitTimeout) {
-        throw new ForkException(self::class." has timed out waiting for forks to complete:\n- ".implode("\n- ",
-          array_map(fn($f) => $f->getLabel(), $in_progress)
-        ));
+    while ($this->updateForkStatus() !== 0) {
+      if ((time() - $start) <= $this->maxWaitTimeout) {
+        usleep(50000);
+        continue;
       }
-
-      $this->readFromServer(count($in_progress) + count($not_started))
-           ->processQueue();
-
+      throw new ForkException(self::class." has timed out waiting for forks to complete:\n- ".implode("\n- ",
+        array_map(fn($f) => $f->getLabel(), $in_progress)
+      ));
     }
-    while ((count($in_progress) + count($not_started)) > 0);
     return $this;
   }
 
-  public function processQueue():ForkManager
+  /**
+   * Get the number of forks remaining to complete.
+   *
+   * This function will also execute forks awaiting to be started.
+   */
+  public function updateForkStatus():int
   {
     $not_started = $this->getForks(ForkInterface::STATUS_NOTSTARTED);
     $in_progress = $this->getForks(ForkInterface::STATUS_INPROGRESS);
 
     if (empty($not_started)) {
-      return $this;
+      return count($in_progress);
     }
+
     // While in progress is empty or in progress is less than the maxParallel
     // and there are forks to start, do loop.
     while ((empty($in_progress) || (count($in_progress) < $this->maxParallel)) && !empty($not_started)) {
@@ -126,32 +112,7 @@ class ForkManager {
       $in_progress = $this->getForks(ForkInterface::STATUS_INPROGRESS);
     }
 
-    return $this;
-  }
-
-  /**
-   * If applicable, check the server for fork messages.
-   */
-  protected function readFromServer(int $remaining):ForkManager
-  {
-    if (!isset($this->server) || !$remaining) {
-      return $this;
-    }
-    $fork_c = $this->server->receive()->payload();
-
-    if (!$fork_c instanceof ForkInterface) {
-      throw new ForkException("Recieved non-Process payload from async server.");
-    }
-
-    $fork_s = $this->getForkById($fork_c->getId());
-
-    // Set the status and result from the client to the fork representation
-    // here in the parent thread.
-    $fork_s->setLabel($fork_c->getLabel())
-           ->setStatus($fork_c->getStatus())
-           ->setResult($fork_c->getResult());
-
-    return $this;
+    return count($in_progress) + count($not_started);
   }
 
   /**
