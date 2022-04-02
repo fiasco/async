@@ -14,6 +14,10 @@ the parent fork to process.
 serialized, it is not recommended use them as return values for the onSuccess
 callback function.
 
+If you're wanting to run asynchronous activities like requests file operations
+or server interaction, consider [ReactPHP](https://reactphp.org) instead (which
+this library relies upon).
+
 ## Installation
 
 Recommended installation method via composer.
@@ -111,7 +115,7 @@ $forkManager->create()->run(function (ForkInterface $fork) {
 
 // Waiting for the fork in parent will timeout and force the fork
 // to error out. The Fork child will still attempt to return the
-// result but it will fail. 
+// result but it will fail.
 $forkManager->create()->run(function (ForkInterface $fork) {
   $fork->setLabel("Fork that will timeout.");
   sleep(4);
