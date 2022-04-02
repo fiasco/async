@@ -85,7 +85,7 @@ class Server {
         if (getmypid() != $authorised_pid) {
           return;
         }
-        isset($logger) && $logger->notice(getmypid().': Sending notification to server to halt.');
+        isset($logger) && $logger->info(getmypid().': Sending notification to server to halt.');
         Client::close();
       });
 
@@ -127,7 +127,7 @@ class Server {
             unset($this->buffer[$connection->getRemoteAddress()]);
           }
           catch (MessageException $e) {
-            $this->notice($e->getMessage()."; Buffering data chunk.");
+            $this->debug($e->getMessage()."; Buffering data chunk.");
             $this->buffer[$connection->getRemoteAddress()] = $data;
           }
 

@@ -40,7 +40,8 @@ class Client {
     Loop::run();
 
     $response = $partial->getMessage();
-    isset($logger) && $logger->info(sprintf("%s(%d): %s %s %s %d %d", __CLASS__, getmypid(), $message->getMethod(), $response->getMethod(), $response->getPath(), strlen($partial->getBuffered()), $partial->getChunks()));
+    $level = $response->getMethod() == 'MISS' ? 'debug' : 'info';
+    isset($logger) && $logger->log($level, sprintf("%s(%d): %s %s %s %d %d", __CLASS__, getmypid(), $message->getMethod(), $response->getMethod(), $response->getPath(), strlen($partial->getBuffered()), $partial->getChunks()));
 
     return $response;
   }
