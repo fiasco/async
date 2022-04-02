@@ -68,6 +68,7 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
   public function execute():ForkInterface
   {
     $this->status = ForkInterface::STATUS_INPROGRESS;
+    $this->startTime = time();
     $pid = pcntl_fork();
     // Child thread gets a zero, the other thread is the parent.
     $this->role = ($pid == 0) ? self::ROLE_CHILD : self::ROLE_PARENT;

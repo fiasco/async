@@ -3,12 +3,15 @@
 namespace Async;
 
 use Async\Exception\ForkException;
+use Async\Exception\ChildExceptionDetected;
 use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerTrait;
 
 
 class SynchronousFork implements ForkInterface {
 
   use LoggerAwareTrait;
+  use LoggerTrait;
 
   protected int $status = 1;
   protected \Closure $runCallback;
@@ -19,6 +22,7 @@ class SynchronousFork implements ForkInterface {
   protected string $label;
   protected int $id;
   protected ForkManager $forkManager;
+  protected int $startTime;
 
   public function __construct(ForkManager $forkManager)
   {
@@ -88,6 +92,21 @@ class SynchronousFork implements ForkInterface {
     if (!$this->processed && isset($this->result)) {
       return $this->setResult($this->result)->getStatus();
     }
+
+    if ($this->status != ForkInterface::STATUS_INPROGRESS) {
+      return $this->status;
+    }
+
+    // If the fork is in progress but has elapsed the timeout period the we
+    // will error out the fork.
+    $elapsed = time() - $this->startTime;
+    if ($elapsed > $this->forkManager->getWaitTimeout()) {
+      $this->setStatus(ForkInterface::STATUS_ERROR);
+      $message = sprintf("Fork '%s' timed out after %d seconds.", $this->label, $this->forkManager->getWaitTimeout());
+      $this->error($message);
+      $e = new ForkException($message);
+      $this->setResult(new ChildExceptionDetected($e));
+    }
     return $this->status;
   }
 
@@ -106,6 +125,7 @@ class SynchronousFork implements ForkInterface {
    */
   public function execute():ForkInterface
   {
+    $this->startTime = time();
     $this->status = ForkInterface::STATUS_INPROGRESS;
     try {
       $callback = $this->runCallback;
@@ -173,5 +193,15 @@ class SynchronousFork implements ForkInterface {
   {
     // Synchronous forks cannot terminate.
     return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function log($level, $message, array $context = array()) {
+    if (!isset($this->logger)) {
+      return;
+    }
+    return $this->logger->log($level, get_class($this).'('.getmypid().'): '.$message, $context);
   }
 }

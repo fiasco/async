@@ -35,7 +35,8 @@ class Server {
 
     $this->on('GET', function (Message $message, ConnectionInterface $connection) {
         $status = isset($this->store[$message->getPath()]) ? 'HIT' : 'MISS';
-        $this->info('GET '.$message->getPath().' '.$status.' '.$connection->getRemoteAddress());
+        $level = $status == 'MISS' ? 'debug' : 'info';
+        $this->log($level, 'GET '.$message->getPath().' '.$status.' '.$connection->getRemoteAddress());
         $connection->end(Message::create($status, $message->getPath(), $this->store[$message->getPath()] ?? false));
     });
 
@@ -161,6 +162,6 @@ class Server {
     if (!isset($this->logger)) {
       return;
     }
-    return $this->logger->log($level, __CLASS__.'('.getmypid().'): '.$message, $context);
+    return $this->logger->log($level, get_class($this).'('.getmypid().'): '.$message, $context);
   }
 }

@@ -36,6 +36,9 @@ class ForkManager {
       Server::spawn(isset($this->logger) ? $this->logger : null);
     }
     $fork = $this->async ? new AsynchronousFork($this) : new SynchronousFork($this);
+    if (isset($this->logger)) {
+      $fork->setLogger($this->logger);
+    }
     $this->forks[] = $fork;
     $fork->setId(count($this->forks));
     return $fork;
@@ -71,6 +74,14 @@ class ForkManager {
   }
 
   /**
+   * Get the max wait timeout per fork.
+   */
+  public function getWaitTimeout():int
+  {
+    return $this->maxWaitTimeout;
+  }
+
+  /**
    * Await for async forks to complete.
    *
    * This is a blocking function.
@@ -84,8 +95,9 @@ class ForkManager {
         continue;
       }
       throw new ForkException(self::class." has timed out waiting for forks to complete:\n- ".implode("\n- ",
-        array_map(fn($f) => $f->getLabel(), $in_progress)
+        array_map(fn($f) => $f->getLabel(), $this->getForks(ForkInterface::STATUS_INPROGRESS))
       ));
+
     }
     return $this;
   }
