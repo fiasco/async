@@ -23,6 +23,8 @@ composer require fiasco/async:^3.0
 
 ## Usage
 
+See [examples](examples).
+
 Use the fork manager to create forks to execute in parallel.
 
 ```php
@@ -92,6 +94,8 @@ If you prefer to work with the results in a foreach loop, you can use
 use Async\ForkManager;
 
 $forkManager = new ForkManager();
+// Wait up to 3 seconds for fork response before giving up.
+$forkManager->setWaitTimeout(3);
 
 $forkManager->create()->run(fn() => 'foo');
 // This will not show unless true is passed as ->getForkResults(true).
@@ -120,6 +124,7 @@ $forkManager->awaitForks();
 // Loop over errored forks.
 foreach ($forkManager->getForks(ForkInterface::STATUS_ERROR) as $fork) {
   // Result will be instance Async\Exception\ChildExceptionDetected.
+  echo sprintf("Fork '%s' encountered an error:\n", $fork->getLabel());
   echo $fork->getResult()->getMessage() . PHP_EOL;
 }
 ```
