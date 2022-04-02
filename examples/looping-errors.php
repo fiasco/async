@@ -22,10 +22,14 @@ $forkManager->create()->run(function (ForkInterface $fork) {
   throw new \Exception('bar');
 });
 
-// This will result in a caught fatal error from the child.
+// Waiting for the fork in parent will timeout and force the fork
+// to error out. The Fork child will still attempt to return the
+// result but it will fail. The logger will output this to the console
+// after the parent thread has completed.
 $forkManager->create()->run(function (ForkInterface $fork) {
   $fork->setLabel("Fork that will timeout.");
   sleep(4);
+  return 'fuz';
 });
 
 // This fork will not error.

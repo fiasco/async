@@ -97,14 +97,42 @@ $forkManager = new ForkManager();
 // Wait up to 3 seconds for fork response before giving up.
 $forkManager->setWaitTimeout(3);
 
-$forkManager->create()->run(fn() => 'foo');
-// This will not show unless true is passed as ->getForkResults(true).
-$forkManager->create()->run(fn() => throw new \Exception('bar'));
+// This will result in a caught fatal error from the child.
+$forkManager->create()->run(fn() => @$foo->doNothing());
+
+// This fork will catch a thrown exception and trigger the onError callback
+// in the parent thread.
+$forkManager->create()->run(function (ForkInterface $fork) {
+  // You can set labels inside the fork to give better information about
+  // what the specific fork is doing.
+  $fork->setLabel("Fork that throws an error.");
+  throw new \Exception('bar');
+});
+
+// Waiting for the fork in parent will timeout and force the fork
+// to error out. The Fork child will still attempt to return the
+// result but it will fail. 
+$forkManager->create()->run(function (ForkInterface $fork) {
+  $fork->setLabel("Fork that will timeout.");
+  sleep(4);
+  return 'fuz';
+});
+
 $forkManager->create()->run(fn() => 'baz');
 
-foreach ($forkManager->getForkResults() as $result) {
-  // Will echo foo, baz. Ordered in the same sequence the forks were created.
-  echo "$result\n";
+$forkManager->awaitForks();
+
+// Loop over errored forks.
+foreach ($forkManager->getForks(ForkInterface::STATUS_ERROR) as $fork) {
+  // Result will be instance Async\Exception\ChildExceptionDetected.
+  echo sprintf("Fork '%s' encountered an error:\n", $fork->getLabel());
+  // echo $fork->getResult()->getMessage() . PHP_EOL;
+}
+
+foreach ($forkManager->getForks(ForkInterface::STATUS_COMPLETE) as $fork) {
+  // Result will be instance Async\Exception\ChildExceptionDetected.
+  echo sprintf("Fork '%s' completed.\n", $fork->getLabel());
+  // echo $fork->getResult()->getMessage() . PHP_EOL;
 }
 ```
 
