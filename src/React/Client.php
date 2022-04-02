@@ -41,7 +41,7 @@ class Client {
     $response = $partial->getMessage();
 
     if (isset($logger)) {
-      $logger->info(sprintf("%d: %s %s %s %d %d", getmypid(), $message->getMethod(), $response->getMethod(), $response->getPath(), strlen($partial->getBuffered()), $partial->getChunks()));
+      $logger->info(sprintf("%s(%d): %s %s %s %d %d", __CLASS__, getmypid(), $message->getMethod(), $response->getMethod(), $response->getPath(), strlen($partial->getBuffered()), $partial->getChunks()));
     }
 
     return $response;
@@ -57,8 +57,13 @@ class Client {
     return self::send(Message::create('GET', $path));
   }
 
+  static public function register():Message
+  {
+    return self::send(Message::create('REGISTER', getmypid()));
+  }
+
   static public function close():Message
   {
-    return self::send(Message::create('EXIT', 'end'));
+    return self::send(Message::create('EXIT', getmypid()));
   }
 }

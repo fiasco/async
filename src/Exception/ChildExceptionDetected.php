@@ -24,6 +24,10 @@ class ChildExceptionDetected implements \Serializable {
     return strtr("[code]: class: message on Line line in file \ntrace", (array) $this);
   }
 
+  public function getMessage():string {
+    return (string) $this;
+  }
+
   public function serialize() {
       return serialize([
         $this->message,

@@ -38,6 +38,9 @@ class PartialMessage {
 
   public function getMessage():Message
   {
+    if (!isset($this->message)) {
+      throw new MessageException("Attempting to get message before message has been formed.");
+    }
     return $this->message;
   }
 }

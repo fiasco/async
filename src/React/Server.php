@@ -18,6 +18,7 @@ class Server {
   protected bool $halt = false;
   protected LoggerInterface $logger;
   protected array $buffer = [];
+  protected array $leases = [];
 
   public function __construct(?LoggerInterface $logger = null)
   {
@@ -45,9 +46,16 @@ class Server {
     });
 
     $this->on('EXIT', function (Message $message, ConnectionInterface $connection) {
-        $this->info('EXIT '.$connection->getRemoteAddress());
+        $this->info('EXIT '.$message->getPath().' BYE '.$connection->getRemoteAddress());
+        unset($this->leases[$message->getPath()]);
         $connection->end(Message::create('BYE', $message->getPath()));
-        $this->halt = true;
+        $this->halt = count($this->leases) === 0;
+    });
+
+    $this->on('REGISTER', function (Message $message, ConnectionInterface $connection) {
+        $this->info('REGISTER '.$message->getPath().' WELCOME '.$connection->getRemoteAddress());
+        $this->leases[$message->getPath()] = time();
+        $connection->end(Message::create('WELCOME', $message->getPath()));
     });
   }
 
@@ -80,6 +88,11 @@ class Server {
         Client::close();
       });
 
+      // Wait for server to boot.
+      usleep(1000);
+
+      Client::register();
+
       // Return the pid of the server.
       return $pid;
     }
@@ -89,7 +102,13 @@ class Server {
 
   public function listen()
   {
-    $socket = new SocketServer('127.0.0.1:8020');
+    try {
+      $socket = new SocketServer('127.0.0.1:8020');
+    }
+    catch (\RuntimeException $e) {
+      $this->warning($e->getMessage().'. Will attempt to use existing server instead.');
+      exit;
+    }
 
     $socket->on('connection', function (ConnectionInterface $connection) use ($socket) {
       $this->debug('[' . $connection->getRemoteAddress() . ' connected]');
@@ -142,6 +161,6 @@ class Server {
     if (!isset($this->logger)) {
       return;
     }
-    return $this->logger->log($level, getmypid().': SERVER->'.$message, $context);
+    return $this->logger->log($level, __CLASS__.'('.getmypid().'): '.$message, $context);
   }
 }
