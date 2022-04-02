@@ -33,16 +33,14 @@ class Client {
         });
         $connection->write((string) $message);
     }, function (\Exception $e) use ($logger) {
-        $logger->error($e->getMessage());
+        isset($logger) && $logger->error($e->getMessage());
     });
 
     // Block till message data has been sent and received.
     Loop::run();
-    $response = $partial->getMessage();
 
-    if (isset($logger)) {
-      $logger->info(sprintf("%s(%d): %s %s %s %d %d", __CLASS__, getmypid(), $message->getMethod(), $response->getMethod(), $response->getPath(), strlen($partial->getBuffered()), $partial->getChunks()));
-    }
+    $response = $partial->getMessage();
+    isset($logger) && $logger->info(sprintf("%s(%d): %s %s %s %d %d", __CLASS__, getmypid(), $message->getMethod(), $response->getMethod(), $response->getPath(), strlen($partial->getBuffered()), $partial->getChunks()));
 
     return $response;
   }

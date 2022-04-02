@@ -164,6 +164,13 @@ class SynchronousFork implements ForkInterface {
    */
   public function setResult($result):ForkInterface
   {
+    // Because exceptions can't be reliably serialized, we turn them
+    // into ChildExceptionDetected instances here. This also ensures the type
+    // of object passed to onError handlers is consistent.
+    if ($result instanceof \Exception) {
+      $result = new ChildExceptionDetected($result);
+    }
+
     $this->result = $result;
     if ($this->status == self::STATUS_ERROR && isset($this->onErrorCallback)) {
       $callback = $this->onErrorCallback;

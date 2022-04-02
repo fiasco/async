@@ -4,6 +4,7 @@ namespace Async;
 
 use Async\Exception\ForkException;
 use Async\React\Server;
+use Async\React\Client;
 use Psr\Log\LoggerAwareTrait;
 
 
@@ -38,6 +39,7 @@ class ForkManager {
     $fork = $this->async ? new AsynchronousFork($this) : new SynchronousFork($this);
     if (isset($this->logger)) {
       $fork->setLogger($this->logger);
+      Client::setLogger($this->logger);
     }
     $this->forks[] = $fork;
     $fork->setId(count($this->forks));

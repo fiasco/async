@@ -5,6 +5,7 @@ namespace Async;
 use Async\Exception\ForkException;
 use Async\Exception\ChildExceptionDetected;
 use Async\React\Client;
+use Async\MessageException;
 
 class AsynchronousFork extends SynchronousFork implements \Serializable {
 
@@ -13,12 +14,6 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
 
   protected string $role;
   protected int $pid;
-
-  public function __construct(ForkManager $forkManager)
-  {
-    parent::__construct($forkManager);
-    $this->label = sprintf("%s %s", static::class, getmypid());
-  }
 
   /**
    * {@inheritdoc}
@@ -87,17 +82,27 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
     unset($this->onError, $this->onSuccess);
 
     set_exception_handler(function ($e) {
-      if (isset($this->logger)) {
-        $this->logger->error($e->getMessage());
-      }
+      $this->error($e->getMessage());
       $this->setResult(new ChildExceptionDetected($e));
       $this->setStatus(ForkInterface::STATUS_ERROR);
 
-      Client::put('/fork/'.$this->pid, $this);
+      try {
+        Client::put('/fork/'.$this->pid, $this);
+      }
+      catch (MessageException $e) {
+        $this->error($e->getMessage());
+      }
     });
 
     parent::execute();
-    Client::put('/fork/'.$this->pid, $this);
+
+    try {
+      Client::put('/fork/'.$this->pid, $this);
+    }
+    catch (MessageException $e) {
+      $this->error($e->getMessage());
+    }
+
     exit;
   }
 
