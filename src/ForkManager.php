@@ -91,21 +91,33 @@ class ForkManager {
    * Await for async forks to complete.
    *
    * This is a blocking function.
+   *
+   * @param int $wait_ms number of milliseconds to wait between checks.
    */
-  public function awaitForks():ForkManager
+  public function awaitForks(int $wait_ms = 100):ForkManager
   {
-    $start = time();
     while ($this->updateForkStatus() !== 0) {
-      if ((time() - $start) <= $this->maxWaitTimeout) {
-        usleep(50000);
-        continue;
-      }
-      throw new ForkException(self::class." has timed out waiting for forks to complete:\n- ".implode("\n- ",
-        array_map(fn($f) => $f->getLabel(), $this->getForks(ForkInterface::STATUS_INPROGRESS))
-      ));
-
+        // Convert milliseconds to microseconds.
+        usleep($wait_ms * 1000);
     }
     return $this;
+  }
+
+  /**
+   * Provide regular updates on remaining forks while awaiting forks to finish.
+   *
+   * This is a blocking function.
+   *
+   * @param int $wait_ms number of milliseconds to wait between checks.
+   */
+  public function waitWithUpdates(int $wait_ms = 100):\Generator
+  {
+    $remaining = $this->updateForkStatus();
+    while ($remaining) {
+      yield $remaining;
+      usleep($wait_ms * 1000);
+      $remaining = $this->updateForkStatus();
+    }
   }
 
   /**
