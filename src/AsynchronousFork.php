@@ -71,12 +71,12 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
 
     if ($this->role == self::ROLE_PARENT) {
       $this->pid = $pid;
-      $this->label = sprintf("%s %s", static::class, $this->pid);
+      // $this->label = sprintf("%s %s", static::class, $this->pid);
       return $this;
     }
 
     $this->pid = getmypid();
-    $this->label = sprintf("%s %s", static::class, $this->pid);
+    // $this->label = sprintf("%s %s", static::class, $this->pid);
 
     // Don't run these in the fork.
     unset($this->onError, $this->onSuccess);
