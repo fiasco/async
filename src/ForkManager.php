@@ -26,6 +26,10 @@ class ForkManager {
     Signal::register([Signal::SIGINT], function () {
         $this->terminateForks();
     });
+
+    $pid = getmypid();
+
+    register_shutdown_function(fn() => $pid == getmypid() && $this->terminateForks());
   }
 
   /**
