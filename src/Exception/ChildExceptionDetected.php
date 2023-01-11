@@ -20,7 +20,7 @@ class ChildExceptionDetected implements \Serializable {
     $this->file = $e->getFile();
   }
 
-  public function __toString(): string {
+  public function __toString():string {
     return strtr("[code]: class: message on Line line in file \ntrace", (array) $this);
   }
 
@@ -28,17 +28,28 @@ class ChildExceptionDetected implements \Serializable {
     return (string) $this;
   }
 
-  public function serialize() {
-      return serialize([
-        $this->message,
-        $this->code,
-        $this->trace,
-        $this->class,
-        $this->line,
-        $this->file,
-      ]);
+  public function serialize():string {
+      return serialize($this->__serialize());
   }
-  public function unserialize($data) {
-      list($this->message, $this->code, $this->trace, $this->class, $this->line, $this->file) = unserialize($data);
+
+  public function __serialize(): array
+  {
+    return [
+      $this->message,
+      $this->code,
+      $this->trace,
+      $this->class,
+      $this->line,
+      $this->file,
+    ];
+  }
+
+  public function unserialize($data):void {
+      $this->__unserialize(unserialize($data));
+  }
+
+  public function __unserialize(array $data):void
+  {
+    list($this->message, $this->code, $this->trace, $this->class, $this->line, $this->file) = $data;
   }
 }

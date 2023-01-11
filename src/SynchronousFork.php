@@ -23,6 +23,7 @@ class SynchronousFork implements ForkInterface {
   protected int $id;
   protected ForkManager $forkManager;
   protected int $startTime;
+  protected int $finishTime;
 
   public function __construct(ForkManager $forkManager)
   {
@@ -131,6 +132,7 @@ class SynchronousFork implements ForkInterface {
       $callback = $this->runCallback;
       $result = $callback($this);
       $this->status = ForkInterface::STATUS_COMPLETE;
+      $this->finishTime = time();
       return $this->setResult($result);
     }
     catch (\Exception $e) {
@@ -210,5 +212,29 @@ class SynchronousFork implements ForkInterface {
       return;
     }
     return $this->logger->log($level, get_class($this).'('.getmypid().'): '.$message, $context);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getStartTime(): int
+  {
+    return $this->startTime;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFinishTime(): int
+  {
+    return $this->finishTime;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getElapsedTime(): int
+  {
+    return $this->finishTime - $this->startTime;
   }
 }

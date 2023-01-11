@@ -196,4 +196,12 @@ class ForkManager {
      function_exists('pcntl_signal_dispatch') && pcntl_signal_dispatch();
      return $this;
   }
+
+  /**
+   * Boolean indication if the manager contains errored forks.
+   */
+  public function hasErrors():bool
+  {
+    return !empty($this->getForks(ForkInterface::STATUS_ERROR));
+  }
 }

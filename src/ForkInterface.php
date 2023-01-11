@@ -72,4 +72,19 @@ interface ForkInterface {
    * Terminate the concurrent processing of the fork.
    */
   public function terminate():ForkInterface;
+
+  /**
+   * Get the epoch when the fork started.
+   */
+  public function getStartTime():int;
+
+  /**
+   * Get the epoch when the fork completed.
+   */
+  public function getFinishTime():int;
+  
+  /**
+   * Get the duration in seconds the fork took.
+   */
+  public function getElapsedTime():int;
 }
