@@ -22,7 +22,7 @@ class Message implements \Serializable {
       $this->path = $path;
     }
 
-    static public function create(string $method = 'GET', $path, $payload = null)
+    static public function create(string $method, $path, $payload = null)
     {
       return new static($path, $method, $payload);
     }
@@ -75,20 +75,29 @@ class Message implements \Serializable {
 
     public function serialize()
     {
-      return serialize([
-        'path' => $this->path,
-        'method' => $this->method,
-        'payload' => $this->payload,
-        'timestamp' => $this->timestamp
-      ]);
+      return serialize($this->__serialize());
     }
 
-    public function unserialize($data)
+    public function unserialize(string $data): void
     {
-      $data = unserialize($data);
+      $this->__unserialize(unserialize($data));
+    }
+
+    public function __unserialize(array $data): void
+    {
       $this->path = $data['path'];
       $this->method = $data['method'];
       $this->payload = $data['payload'];
       $this->timestamp = $data['timestamp'];
+    }
+
+    public function __serialize(): array
+    {
+      return [
+        'path' => $this->path,
+        'method' => $this->method,
+        'payload' => $this->payload,
+        'timestamp' => $this->timestamp
+      ];
     }
 }

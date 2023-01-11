@@ -137,23 +137,32 @@ class AsynchronousFork extends SynchronousFork implements \Serializable {
   /**
    * {@inheritdoc}
    */
-  public function serialize()
+  public function serialize(): string
   {
-    return serialize([
-      'id' => $this->id,
-      'result' => $this->result ?? null,
-      'label' => $this->label,
-      'status' => $this->status,
-      'role' => $this->role
-    ]);
+    return serialize($this->__serialize());
   }
 
   /**
    * {@inheritdoc}
    */
-  public function unserialize($data)
+  public function unserialize($data): void
   {
-    $attributes = unserialize($data);
+    $this->__unserialize(unserialize($data));
+  }
+
+  public function __serialize(): array
+  {
+    return [
+      'id' => $this->id,
+      'result' => $this->result ?? null,
+      'label' => $this->label,
+      'status' => $this->status,
+      'role' => $this->role
+    ];
+  }
+
+  public function __unserialize(array $attributes): void
+  {
     $this->id  = $attributes['id'];
     $this->result = $attributes['result'];
     $this->label = $attributes['label'];
