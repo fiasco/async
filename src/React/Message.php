@@ -73,7 +73,7 @@ class Message implements \Serializable {
       return $this->method;
     }
 
-    public function serialize()
+    public function serialize(): string
     {
       return serialize($this->__serialize());
     }
