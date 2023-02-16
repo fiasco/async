@@ -4,10 +4,9 @@ namespace Async\React;
 
 use React\Socket\Connector;
 use React\Socket\ConnectionInterface;
-use React\Stream\WritableResourceStream;
 use React\EventLoop\Loop;
 use Psr\Log\LoggerInterface;
-use Async\MessageException;
+
 
 class Client
 {
@@ -18,6 +17,9 @@ class Client
         self::$logger = $logger;
     }
 
+    /**
+     * Send a message to the server.
+     */
     public static function send(Message $message): Message
     {
         $connector = new Connector();
@@ -46,23 +48,43 @@ class Client
         return $response;
     }
 
+    /**
+     * Put a message payload in the server.
+     */
     public static function put($path, $payload): Message
     {
         return self::send(Message::create('PUT', $path, $payload));
     }
 
+    /**
+     * Get a message payload from the server.
+     */
     public static function get($path): Message
     {
         return self::send(Message::create('GET', $path));
     }
 
+    /**
+     * Open registered lease with the server.
+     */
     public static function register(): Message
     {
         return self::send(Message::create('REGISTER', getmypid()));
     }
 
+    /**
+     * Close registered lease with the server.
+     */
     public static function close(): Message
     {
         return self::send(Message::create('EXIT', getmypid()));
+    }
+
+    /**
+     * Get information from the server about current leases and stored information.
+     */
+    public static function getServerStatus(): Message
+    {
+        return self::send(Message::create('STATUS', getmypid()));
     }
 }

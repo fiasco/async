@@ -59,6 +59,15 @@ class Server
             $this->leases[$message->getPath()] = time();
             $connection->end(Message::create('WELCOME', $message->getPath()));
         });
+
+        $this->on('STATUS', function (Message $message, ConnectionInterface $connection) {
+            $this->info('STATUS '.$message->getPath().' REQUESTED '.$connection->getRemoteAddress());
+            $data = [
+                'leases' => $this->leases,
+                'store' => array_keys($this->store),
+            ];
+            $connection->end(Message::create('OK', $message->getPath(), $data));
+        });
     }
 
     /**
