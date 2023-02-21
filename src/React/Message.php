@@ -3,6 +3,7 @@
 namespace Async\React;
 
 use Async\MessageException;
+use Exception;
 
 class Message implements \Serializable {
 
@@ -32,11 +33,16 @@ class Message implements \Serializable {
      */
     public function __toString():string
     {
-      // base64 ensures any end of line (EOL) characters are not incorrectly
-      // interpreted by the server as a premature transfer completion.
-      $payload = base64_encode(serialize($this));
-      // PHP_EOL is how the server knows the payload is complete.
-      return $payload;
+      try {
+        // base64 ensures any end of line (EOL) characters are not incorrectly
+        // interpreted by the server as a premature transfer completion.
+        $payload = base64_encode(serialize($this));
+        // PHP_EOL is how the server knows the payload is complete.
+        return $payload;
+      }
+      catch (Exception $e) {
+        throw new Exception("Serialization of payload failed: ".$e->getMessage(), 1, $e);
+      }
     }
 
     public static function fromPayload(string $message):Message

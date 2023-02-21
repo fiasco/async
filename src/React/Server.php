@@ -29,7 +29,7 @@ class Server
         $this->on('PUT', function (Message $message, ConnectionInterface $connection) {
             $status = isset($this->store[$message->getPath()]) ? 'UPDATED' : 'NEW';
             $this->info('PUT '.$message->getPath().' '.$status.' '.$connection->getRemoteAddress());
-            $this->debug("Storing payload: ".serialize($message->getPayload()));
+            // $this->debug("Storing payload: ".serialize($message->getPayload()));
             $this->store[$message->getPath()] = $message->getPayload();
             $connection->end(Message::create($status, $message->getPath()));
         });

@@ -47,7 +47,7 @@ class AsynchronousFork extends SynchronousFork implements \Serializable
         try {
             $message = Client::get('/fork/'.$this->pid);
         } catch (MessageException $e) {
-            throw new MessageException("Request failed: GET /fork/" . $this->pid . ': ' . $e->getMessage());
+            throw new MessageException("Request failed: GET /fork/" . $this->pid . ': ' . $e->getMessage(), 0, $e);
         }
 
         if ($message->getMethod() != 'HIT') {
@@ -56,8 +56,8 @@ class AsynchronousFork extends SynchronousFork implements \Serializable
 
         $fork = $message->getPayload();
         $this->setLabel($fork->getLabel())
-         ->setStatus($fork->getStatus())
-         ->setResult($fork->getResult());
+            ->setStatus($fork->getStatus())
+            ->setResult($fork->getResult());
 
         return parent::getStatus();
     }
@@ -76,15 +76,13 @@ class AsynchronousFork extends SynchronousFork implements \Serializable
 
         if ($this->role == self::ROLE_PARENT) {
             $this->pid = $pid;
-            // $this->label = sprintf("%s %s", static::class, $this->pid);
             return $this;
         }
 
         $this->pid = getmypid();
-        // $this->label = sprintf("%s %s", static::class, $this->pid);
 
         // Don't run these in the fork.
-        unset($this->onError, $this->onSuccess);
+        unset($this->onErrorCallback, $this->onSuccessCallback);
 
         set_exception_handler(function ($e) {
             $this->error($e->getMessage());
@@ -175,7 +173,7 @@ class AsynchronousFork extends SynchronousFork implements \Serializable
         // ChildExceptionDetected cannot be an Exception class because serialization
         // of Closures cause fatal errors.
         if ($this->result instanceof ChildExceptionDetected) {
-        $this->result = new ForkException((string) $this->result);
+            $this->result = new ForkException((string) $this->result);
         }
     }
 }

@@ -177,7 +177,7 @@ class SynchronousFork implements ForkInterface {
     if ($this->status == self::STATUS_ERROR && isset($this->onErrorCallback)) {
       $callback = $this->onErrorCallback;
     }
-    if ($this->status == self::STATUS_COMPLETE && isset($this->onSuccessCallback)) {
+    elseif ($this->status == self::STATUS_COMPLETE && isset($this->onSuccessCallback)) {
       $callback = $this->onSuccessCallback;
     }
     if (isset($callback)) {
