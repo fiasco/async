@@ -5,8 +5,9 @@ namespace Async;
 use Async\Exception\ForkException;
 use Async\React\Server;
 use Async\React\Client;
+use Exception;
 use Psr\Log\LoggerAwareTrait;
-
+use Psr\Log\NullLogger;
 
 function_exists('pcntl_async_signals') && pcntl_async_signals(TRUE);
 
@@ -23,6 +24,7 @@ class ForkManager {
   public function __construct()
   {
     $this->async = function_exists('pcntl_fork');
+    $this->logger = new NullLogger();
     Signal::register([Signal::SIGINT], function () {
         $this->terminateForks();
     });
@@ -32,19 +34,23 @@ class ForkManager {
     register_shutdown_function(fn() => $pid == getmypid() && $this->terminateForks());
   }
 
+  public function clearForks():void
+  {
+    $this->forks = [];
+  }
+
   /**
    * Create a new instance of ForkInterface.
    */
   public function create():ForkInterface
   {
     if ($this->async) {
-      Server::spawn(isset($this->logger) ? $this->logger : null);
-    }
-    $fork = $this->async ? new AsynchronousFork($this) : new SynchronousFork($this);
-    if (isset($this->logger)) {
-      $fork->setLogger($this->logger);
+      Server::spawn($this->logger);
       Client::setLogger($this->logger);
     }
+    $fork = $this->async ? new AsynchronousFork($this) : new SynchronousFork($this);
+    $fork->setLogger($this->logger);
+
     $this->forks[] = $fork;
     $fork->setId(count($this->forks));
     return $fork;
@@ -59,6 +65,11 @@ class ForkManager {
   {
     $this->async = function_exists('pcntl_fork') && $value;
     return $this;
+  }
+
+  public function isAsync():bool
+  {
+    return $this->async;
   }
 
   /**
