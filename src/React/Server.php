@@ -9,6 +9,7 @@ use Evenement\EventEmitterTrait;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LoggerTrait;
 use Async\MessageException;
+use Stringable;
 
 class Server
 {
@@ -169,11 +170,11 @@ class Server
     /**
      * {@inheritdoc}
      */
-    public function log($level, $message, array $context = array())
+    public function log($level, Stringable|string $message, array $context = []): void
     {
         if (!isset($this->logger)) {
             return;
         }
-        return $this->logger->log($level, get_class($this).'('.getmypid().'): '.$message, $context);
+        $this->logger->log($level, get_class($this).'('.getmypid().'): '.$message, $context);
     }
 }

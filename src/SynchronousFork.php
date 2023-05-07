@@ -6,7 +6,7 @@ use Async\Exception\ForkException;
 use Async\Exception\ChildExceptionDetected;
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerTrait;
-
+use Stringable;
 
 class SynchronousFork implements ForkInterface {
 
@@ -207,11 +207,11 @@ class SynchronousFork implements ForkInterface {
   /**
    * {@inheritdoc}
    */
-  public function log($level, $message, array $context = array()) {
+  public function log($level, Stringable|string $message, array $context = []): void {
     if (!isset($this->logger)) {
       return;
     }
-    return $this->logger->log($level, get_class($this).'('.getmypid().'): '.$message, $context);
+    $this->logger->log($level, get_class($this).'('.getmypid().'): '.$message, $context);
   }
 
   /**
