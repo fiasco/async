@@ -174,10 +174,11 @@ class ForkManager {
    * Get all forks managed by ForkManager instance.
    *
    * @param int $status see ForkInterface STATUS constants.
+   * @return \Async\ForkInterface[]
    */
   public function getForks(?int $status = null):array
   {
-    return array_filter($this->forks, function ($fork) use ($status) {
+    return array_filter($this->forks, function (ForkInterface $fork) use ($status) {
       return is_null($status) || $fork->getStatus() == $status;
     });
   }

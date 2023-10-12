@@ -2,6 +2,7 @@
 
 namespace Async\React;
 
+use Async\MessageException;
 use React\Socket\Connector;
 use React\Socket\ConnectionInterface;
 use React\EventLoop\Loop;
@@ -77,7 +78,12 @@ class Client
      */
     public static function close(): Message
     {
-        return self::send(Message::create('EXIT', getmypid()));
+        try {
+            return self::send(Message::create('EXIT', getmypid()));
+        }
+        catch (MessageException $e) {
+            // This can happen if we are closing due to interuption.
+        }   
     }
 
     /**
